@@ -249,7 +249,35 @@ class MATPLOTLIBPlot(BasePlot, ABC):
             Axes: The generated Matplotlib axes object.
         """
         self._load_extension()
-        if self.ax is None:
+        # If a canvas (Axes) was provided but a 3D plot is requested,
+        # convert the provided 2D Axes to a 3D Axes so 3D plotting calls
+        # (which rely on 3D-specific methods) do not fail.
+        if self.ax is not None and self.plot_3d:
+            try:
+                is_3d = getattr(self.ax, "name", "") == "3d"
+            except Exception:
+                is_3d = False
+            if not is_3d:
+                fig = self.ax.get_figure()
+                try:
+                    ss = self.ax.get_subplotspec()
+                    new_ax = fig.add_subplot(ss, projection="3d")
+                except Exception:
+                    new_ax = fig.add_subplot(111, projection="3d")
+                # preserve basic title/labels from the original axes
+                try:
+                    new_ax.set_title(self.ax.get_title())
+                    new_ax.set_xlabel(self.ax.get_xlabel())
+                    new_ax.set_ylabel(self.ax.get_ylabel())
+                except Exception:
+                    pass
+                # remove the old axes and replace
+                try:
+                    self.ax.remove()
+                except Exception:
+                    pass
+                self.ax = new_ax
+        elif self.ax is None:
             self._create_figure()
 
         self.plot()
